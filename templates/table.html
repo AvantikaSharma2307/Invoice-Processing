@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+    
+<head>
+  <meta charset="UTF-8">
+  <title>📊 Uploaded Invoices </title>  
+  <style>
+    body { font-family: sans-serif; background: #f8f9fa; padding: 20px; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { padding: 10px; border: 1px solid #ddd; text-align: left; }
+    th { background-color: #3498db; color: white; }
+    img { max-height: 60px; }    
+  </style>   
+</head>
+
+<body>
+  <h2>📋 Extracted Invoice Table </h2> 
+  {% if rows %}
+  <form action="/submit_selected" method="POST">
+    <table>
+      <thead>
+        <tr>
+          <th>Sr. No.</th>
+          <th>Select</th>
+          <th>Invoice #</th>
+          <th>Date</th>
+          <th>Due</th>
+          <th>Company</th>
+          <th>Email</th>
+          <th>Phone</th>
+          <th>Total</th>
+          <th>Image</th>
+          <th>Time</th>
+          <th>Submit</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td><input type="checkbox" name="selected_invoices" value="{{ loop.index0 }}"></td>
+          <td>{{ row.invoice_number }}</td>
+          <td>{{ row.date }}</td>
+          <td>{{ row.due_date }}</td>
+          <td>{{ row.company_name }}</td>
+          <td>{{ row.email }}</td>
+          <td>{{ row.phone }}</td>
+          <td>{{ row.total or row.total_due or row.total_amount }}</td>
+          <td><a href="{{ row.image_url }}" target="_blank"><img src="{{ row.image_url }}"></a></td>
+          <td>{{ row.timestamp }}</td>
+          <td><button type="submit" onclick="return validateRow({{ loop.index0 }});">Submit</button></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </form>
+  {% else %}
+  <p>No invoices uploaded yet.</p>
+  {% endif %}
+<script>
+function validateRow(index) {
+  const checkbox = document.querySelector(`input[name='selected_invoices'][value='${index}']`);
+  if (!checkbox || !checkbox.checked) {
+    alert("Please check the checkbox before submitting.");
+    return false;
+  }
+  const input = document.createElement("input");
+  input.type = "hidden";
+  input.name = "submit_index";
+  input.value = index;
+  document.querySelector("form").appendChild(input);
+  return true;
+}
+</script>
+</body>
+</html>

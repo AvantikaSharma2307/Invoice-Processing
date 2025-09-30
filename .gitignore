@@ -1,0 +1,32 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environment
+imgenv/
+venv/
+env/
+ENV/
+
+# Environment variables
+.env
+
+# Uploaded files and processed data
+uploads/
+output/
+
+# FAISS vector store
+faiss_store/
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
