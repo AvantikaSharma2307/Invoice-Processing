@@ -1,0 +1,7 @@
+Flask
+werkzeug
+google-generativeai
+python-dotenv
+sentence-transformers
+faiss-cpu
+pillow
