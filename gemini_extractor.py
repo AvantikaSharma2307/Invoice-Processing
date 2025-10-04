@@ -3,9 +3,9 @@
 import os
 import re
 import json
-from PIL import Image
-import google.generativeai as genai
-from dotenv import load_dotenv
+from PIL import Image # type: ignore
+import google.generativeai as genai # type: ignore
+from dotenv import load_dotenv # type: ignore
 from datetime import datetime
 
 load_dotenv()  # Load from .env if needed
