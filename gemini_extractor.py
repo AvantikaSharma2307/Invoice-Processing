@@ -1,5 +1,4 @@
 # gemini_extractor.py
-
 import os
 import re
 import json
@@ -26,7 +25,7 @@ def configure_gemini(api_key: str):
     return genai.GenerativeModel("models/gemini-2.0-flash")
 
 def save_output_json(output_text: str, image_path: str):
-    """Save extracted data to JSON in output/ directory."""
+    """Save extracted data to JSON file (backup) - MongoDB is primary storage."""
     try:
         os.makedirs("output", exist_ok=True)
         base_name = os.path.splitext(os.path.basename(image_path))[0]
@@ -43,10 +42,10 @@ def save_output_json(output_text: str, image_path: str):
         with open(output_file, "w", encoding="utf-8") as f:
             json.dump(json_data, f, indent=2)
 
-        print(f"✅ Output saved to: {output_file}")
+        print(f"✅ Backup JSON saved to: {output_file}")
         return output_file
     except Exception as e:
-        print("❌ Failed to save output JSON:", e)
+        print("❌ Failed to save backup JSON:", e)
 
         
 def extract_invoice_fields(image_path: str):

@@ -6,7 +6,8 @@ from datetime import datetime
 from flask import Flask, request, render_template, redirect, jsonify,url_for, send_from_directory ,abort# type: ignore
 from werkzeug.utils import secure_filename # type: ignore
 from gemini_extractor import extract_invoice_fields
-# Add this import
+# Add MongoDB import
+from db_config import mongo_db
 from vector_store import add_invoice_to_db, search_invoices
 
 
@@ -28,11 +29,8 @@ def scanner_page():
 
 @app.route("/table")
 def table_page():
-    table_data_file = "output/invoice_table_data.json"
-    rows = []
-    if os.path.exists(table_data_file):
-        with open(table_data_file, "r") as f:
-            rows = json.load(f)
+    # Get all invoices from MongoDB
+    rows = mongo_db.get_all_invoices()
     return render_template("table.html", rows=rows)
 
 
@@ -124,6 +122,34 @@ def table_page():
 #     table_rows.insert(0, row_data)
 #     with open(table_data_file, "w") as f:
 #         json.dump(table_rows, f, indent=2)
+    # ✅ Prepare data for MongoDB with all extracted fields
+    row_data = {
+        "invoice_number": json_data.get("invoice_number", ""),
+        "po_number": json_data.get("po_number", ""),
+        "grn_number": json_data.get("grn_number", ""),
+        "asn_number": json_data.get("asn_number", ""),
+        "date": json_data.get("date", ""),
+        "due_date": json_data.get("due_date", ""),
+        "company_name": json_data.get("company_name", ""),
+        "company_address": json_data.get("company_address", ""),
+        "email": json_data.get("email", ""),
+        "phone": json_data.get("phone", ""),
+        "customer_name": json_data.get("customer_name", ""),
+        "billing_address": json_data.get("billing_address", ""),
+        "shipping_address": json_data.get("shipping_address", ""),
+        "subtotal": json_data.get("subtotal", ""),
+        "discount": json_data.get("discount", ""),
+        "tax": json_data.get("tax", ""),
+        "total": json_data.get("total", ""),
+        "bank_name": json_data.get("bank_name", ""),
+        "bank_account": json_data.get("bank_account", ""),
+        "items": json_data.get("items", []),
+        "image_url": f"/uploads/{filename}",
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    }
+
+    # ✅ Save to MongoDB instead of JSON file
+    mongo_db.insert_invoice(row_data)
 
 #     return redirect(url_for("table_page"))
 
@@ -147,46 +173,32 @@ def append_invoice_row(data):
 @app.route('/search', methods=['GET', 'POST'])
 def search():
     if request.method == 'POST':
-        query = request.form['query']
-        results = search_invoices(query)
+        query = request.form.get('query', '')
+    else:
+        query = request.args.get('query', '')
 
-        html = """
-        <h2>🔍 Search Results</h2>
-        <div style="margin-top: 20px;">
-        """
+    if not query:
+        return render_template('table.html', rows=[], search_error="Please enter a search query")
+
+    try:
+        # Use MongoDB text search
+        results = mongo_db.search_invoices(query)
         if not results:
-            html += "<p>No matching invoices found.</p>"
-        else:
-            for res in results:
-                data = res["data"]
-                html += "<div style='margin:20px; padding:20px; background:#ecf0f1; border-radius:10px;'>"
-                html += f"<h4>🧾 Invoice: {data.get('invoice_number', 'N/A')}</h4>"
-                
-                for key, value in data.items():
-                    if isinstance(value, list):
-                        html += f"<p><strong>{key.capitalize()}:</strong><br>"
-                        for item in value:
-                            html += f"&nbsp;&nbsp;• {json.dumps(item)}<br>"
-                        html += "</p>"
-                    else:
-                        html += f"<p><strong>{key.capitalize()}:</strong> {value}</p>"
-                html += "</div>"
+            return render_template('table.html', rows=[], search_error="No matching invoices found")
 
-        html += "</div><a href='/' style='display:block; margin-top:30px;'>⬅ Back</a>"
-        return html
-    return redirect(url_for("scanner_page"))
+        return render_template('table.html', rows=results, search_query=query)
+
+    except Exception as e:
+        return render_template('table.html', rows=[], search_error=f"Search error: {str(e)}")
 
 
 
 @app.route('/submit_selected', methods=['POST'])
 def submit_selected():
-    # Load stored table data
-    table_data_file = os.path.join(OUTPUT_FOLDER, "invoice_table_data.json")
-    if not os.path.exists(table_data_file):
+    # Load invoice data from MongoDB
+    table_data = mongo_db.get_all_invoices()
+    if not table_data:
         return "<h3>❌ No invoice data found.</h3>"
-
-    with open(table_data_file, "r") as f:
-        table_data = json.load(f)
 
     submitted_rows = []
 
@@ -282,6 +294,60 @@ def submit_selected():
 #         </div>
 #         <h2>📄 All Invoices (Detailed View)</h2>
 #     """
+@app.route('/invoices')
+def view_all_invoices():
+    # Load all invoices from MongoDB
+    invoices = mongo_db.get_all_invoices()
+    if not invoices:
+        return """
+        <h3>❌ No invoices found</h3>
+        <a href="/scan" class="btn">Go to Scanner</a>
+        """
+    
+    # Generate HTML for all invoices with detailed view
+    html = """
+    <style>
+        .invoice-container { max-width: 1200px; margin: 20px auto; padding: 20px; }
+        .invoice-card { 
+            background: #f8f9fa; 
+            border-radius: 8px; 
+            padding: 20px; 
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .invoice-header { 
+            display: flex; 
+            justify-content: space-between; 
+            border-bottom: 2px solid #dee2e6;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+        .invoice-details { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .invoice-image { max-width: 200px; margin-top: 10px; }
+        .btn { 
+            display: inline-block; 
+            padding: 8px 16px; 
+            background: #007bff; 
+            color: white; 
+            text-decoration: none; 
+            border-radius: 4px; 
+            margin: 5px;
+        }
+        .btn:hover { background: #0056b3; }
+        .nav-buttons {
+            margin: 20px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+    </style>
+    <div class="invoice-container">
+        <div class="nav-buttons">
+            <a href="/scan" class="btn">Scanner</a>
+            <a href="/table" class="btn">Table View</a>
+        </div>
+        <h2>📄 All Invoices (Detailed View)</h2>
+    """
     
 #     for idx, invoice in enumerate(invoices):
 #         html += f"""
