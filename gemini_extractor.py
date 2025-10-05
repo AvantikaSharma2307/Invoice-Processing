@@ -62,6 +62,7 @@ def extract_invoice_fields(image_path: str):
             "po_number: string (PO No, if present)\n"
             "grn_number: string (GRN No, if present)\n"
             "asn_number: string (ASN No, if present)\n"
+            "gst_number: string (GST No/GSTIN, if present)\n"
             "date: string (invoice date)\n"
             "due_date: string (if present)\n"
             "company_name: string (seller or issuing company)\n"

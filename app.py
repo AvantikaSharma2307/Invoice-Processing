@@ -29,9 +29,51 @@ def scanner_page():
 
 @app.route("/table")
 def table_page():
-    # Get all invoices from MongoDB
-    rows = mongo_db.get_all_invoices()
-    return render_template("table.html", rows=rows)
+    search_query = request.args.get('search', '').strip()
+    
+    if search_query:
+        # Use semantic search from vector database
+        invoices = search_invoices(search_query)
+        print(f"🔍 Search query: '{search_query}' returned {len(invoices)} results")
+    else:
+        # Get all invoices from MongoDB
+        invoices = mongo_db.get_all_invoices()
+    
+    # Flatten nested structure for table display
+    rows = []
+    for invoice in invoices:
+        if 'data' in invoice:
+            # New nested structure
+            data = invoice['data']
+            row = {
+                "invoice_number": data.get("invoice_number", ""),
+                "date": data.get("date", ""),
+                "due_date": data.get("due_date", ""),
+                "company_name": data.get("company_name", ""),
+                "email": data.get("email", ""),
+                "phone": data.get("phone", ""),
+                "customer_name": data.get("customer_name", ""),
+                "total": data.get("total", ""),
+                "image_url": f"/uploads/{invoice.get('filename', '')}",
+                "timestamp": invoice.get("timestamp", "")
+            }
+        else:
+            # Old flat structure (for backward compatibility)
+            row = {
+                "invoice_number": invoice.get("invoice_number", ""),
+                "date": invoice.get("date", ""),
+                "due_date": invoice.get("due_date", ""),
+                "company_name": invoice.get("company_name", ""),
+                "email": invoice.get("email", ""),
+                "phone": invoice.get("phone", ""),
+                "customer_name": invoice.get("customer_name", ""),
+                "total": invoice.get("total", ""),
+                "image_url": invoice.get("image_url", ""),
+                "timestamp": invoice.get("timestamp", "")
+            }
+        rows.append(row)
+    
+    return render_template("table.html", rows=rows, search_query=search_query)
 
 
 
@@ -532,7 +574,10 @@ def process_invoice_background(save_path, filename, tenant_id, location):
             print(f"[ERROR] Unexpected response type for {filename}")
             return
 
-        # 🔹 Add tenant_id, location, metadata into the same json_data
+        # 🔹 Add tenant_id, location, metadata into the same json_data like reference
+        import uuid
+        generated_tenant_id = str(uuid.uuid4()).replace('-', '')[:24]  # Generate 24-char tenant_id like in image
+        
         json_data["image_url"] = f"/uploads/{filename}"
         
 
@@ -542,8 +587,18 @@ def process_invoice_background(save_path, filename, tenant_id, location):
         with open(json_path, "w") as f:
             json.dump(json_data, f, indent=2)
 
-        # Save to DB
-        add_invoice_to_db(json_data, filename,tenant_id,location)
+        # Save to vector DB
+        add_invoice_to_db(json_data, filename, generated_tenant_id, location)
+        
+        # Save to MongoDB in same structure as reference image
+        row_data = {
+            "filename": filename,
+            "tenant_id": generated_tenant_id,
+            "location": location,
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "data": json_data
+        }
+        mongo_db.insert_invoice(row_data)
 
         print(f"[SUCCESS] {filename} processed successfully.")
 
@@ -551,6 +606,7 @@ def process_invoice_background(save_path, filename, tenant_id, location):
         print(f"[ERROR] Failed processing {filename}: {e}")
 
 
+@app.route('/upload', methods=['POST'])
 @app.route('/web-upload', methods=['POST'])
 def web_upload():
     file = request.files.get('invoice_file')
@@ -583,14 +639,8 @@ def web_upload():
     executor = ThreadPoolExecutor(max_workers=5)
     executor.submit(process_invoice_background, save_path, filename, tenant_id, location)
 
-    # Immediate success response
-    return jsonify({
-        "status": "success",
-        "message": "File uploaded successfully. Invoice processing will happen in background.",
-        "filename": filename,
-        "tenant_id": tenant_id,
-        "location": location
-    }), 200
+    # Redirect to table page like the original upload function
+    return redirect(url_for('table_page'))
 
 
 

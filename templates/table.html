@@ -15,6 +15,29 @@
 
 <body>
   <h2>📋 Extracted Invoice Table </h2> 
+  
+  <!-- Search Form -->
+  <div style="margin-bottom: 20px; padding: 15px; background: white; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+    <form action="/table" method="GET" style="display: flex; gap: 10px; align-items: center;">
+      <label for="search" style="font-weight: bold;">🔍 Search Invoices:</label>
+      <input 
+        type="text" 
+        name="search" 
+        id="search" 
+        placeholder="Search by company, invoice number, or any text..." 
+        value="{{ search_query or '' }}"
+        style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"
+      >
+      <button type="submit" style="padding: 8px 15px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">Search</button>
+      {% if search_query %}
+      <a href="/table" style="padding: 8px 15px; background: #95a5a6; color: white; text-decoration: none; border-radius: 4px;">Clear</a>
+      {% endif %}
+    </form>
+    {% if search_query %}
+    <p style="margin-top: 10px; color: #666;">Showing results for: <strong>"{{ search_query }}"</strong> ({{ rows|length }} results found)</p>
+    {% endif %}
+  </div>
+  
   {% if rows %}
   <form action="/submit_selected" method="POST">
     <table>
