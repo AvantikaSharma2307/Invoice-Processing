@@ -15,8 +15,9 @@ This is an AI-powered invoice processing system that uses Google's Gemini AI for
 ## Prerequisites
 
 1. Python 3.8 or higher
-2. Google Gemini API key
-3. Virtual environment (recommended)
+2. MongoDB installed and running locally (or MongoDB URI for remote)
+3. Google Gemini API key
+4. Virtual environment (recommended)
 
 ## Installation
 
@@ -45,6 +46,28 @@ pip install flask werkzeug google-generativeai faiss-cpu Pillow python-dotenv se
 4. Create a `.env` file in the project root and add your Gemini API key:
 ```
 GEMINI_API_KEY=your_api_key_here
+pip install -r requirements.txt
+```
+
+4. Install and start MongoDB:
+```bash
+# Windows (using MongoDB Community Edition)
+# Download from: https://www.mongodb.com/try/download/community
+# Or using chocolatey:
+choco install mongodb
+
+# Linux (Ubuntu)
+sudo apt-get install mongodb
+
+# macOS (using Homebrew)
+brew install mongodb-community
+brew services start mongodb-community
+```
+
+5. Create a `.env` file in the project root and add your configuration:
+```
+GEMINI_API_KEY=your_api_key_here
+MONGO_URI=mongodb://localhost:27017/
 ```
 
 ## Project Structure
@@ -144,4 +167,8 @@ python app.py
 
 3. If endpoints return 404:
    - Make sure you're using the correct URLs
+<<<<<<< Updated upstream
    - Check if all required directories exist
+=======
+   - Check if all required directories exist
+>>>>>>> Stashed changes
